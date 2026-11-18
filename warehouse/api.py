@@ -8,6 +8,7 @@ from warehouse.results.staging import StagingStore
 from warehouse.results.publication import PublicationStore
 from warehouse.results.api import ResultService
 from warehouse.execution.runner import ExecutionRunner
+from warehouse.execution.isolation import IsolatedRunner
 
 
 class Warehouse:
@@ -22,7 +23,7 @@ class Warehouse:
         self.publication = PublicationStore(self.database, self.runs, self.staging)
         self.results = ResultService(
             self.database, self.source_store, self.plan_store, self.runs,
-            self.staging, self.publication, ExecutionRunner())
+            self.staging, self.publication, ExecutionRunner(), IsolatedRunner())
 
     def ingest(self, request_id, records):
         return self.source.ingest(request_id, records)
@@ -33,8 +34,14 @@ class Warehouse:
     def run(self, batch_id, plan_revision, function_context=None):
         return self.results.run(batch_id, plan_revision, function_context)
 
+    def run_isolated(self, batch_id, plan_revision, function_context=None):
+        return self.results.run_isolated(batch_id, plan_revision, function_context)
+
     def read_result(self, run_id):
         return self.results.read_result(run_id)
+
+    def read_isolated_result(self, run_id):
+        return self.results.read_isolated_result(run_id)
 
     def close(self):
         self.database.close()

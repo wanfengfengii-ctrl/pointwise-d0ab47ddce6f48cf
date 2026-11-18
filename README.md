@@ -121,6 +121,18 @@ zero-row results are readable. Row count, contiguous order and batch ownership
 are checked. Same-name registrations, other failures and reopening cannot
 change old definitions, bindings or results.
 
+## Isolated quality runs
+
+run_isolated(batch_id, plan_revision, function_context=None) takes the same
+arguments as run but quarantines quality failures (FunctionFailure,
+MissingField, TypeMismatch) to the owning occurrence instead of failing the
+whole batch: details already produced within the owner are withdrawn, its
+remaining descendants are skipped and unrelated occurrences continue.
+read_isolated_result(run_id) returns the surviving rows, renumbered
+contiguously from zero, plus the rejections in discovery order. The two read
+entries are mutually exclusive per run. See ISOLATION.md for the rules and
+ISOLATION_HANDOVER.md for the delivery notes.
+
 For deterministic boundary tests, warehouse.database.inject_once(point,
 after=0) raises StorageFailure on encounter after+1 and removes the injection.
 Points: source.record, source.before_commit, plan.before_commit,
@@ -134,9 +146,10 @@ warehouse/source/ owns validation, snapshots, receipts, stored records and
 coordinates. warehouse/expressions/ owns syntax, validation, strict semantics,
 errors and deterministic functions. warehouse/planning/ owns lexical
 resolution, compilation and immutable revisions. warehouse/execution/ owns
-occurrence environments, demand cells, expansion and ordered projection.
-warehouse/results/ owns SQLite lifecycle, run transitions, staging and atomic
-publication. warehouse/api.py composes the services.
+occurrence environments, demand cells, expansion, ordered projection and the
+isolated quality runner. warehouse/results/ owns SQLite lifecycle, run
+transitions, staging and atomic publication. warehouse/api.py composes the
+services.
 
 tests/test_source.py: identity, replay, invalid middle records, snapshot,
 rollback and reopen. tests/test_planning.py: lexical visibility, shadowing,
@@ -148,7 +161,10 @@ cached errors. tests/test_results.py: late failure, publication boundaries,
 failure-record errors, exact historical reads and reopen.
 tests/oracle.py independently interprets public definitions with lexical
 loops, comparing rows, coordinates, traces and first errors without production
-compiler/evaluator imports.
+compiler/evaluator imports; its interpret_isolated variant reconciles isolated
+runs. isolation_examples.py checks isolated details, rejections and traces
+against hand-computed expectations and that oracle, and demonstrates parent
+late failure and element-local failure.
 
 Single-worker batches only. Distributed scheduling, checkpoint continuation,
 incremental maintenance and external expression SDKs are outside this product.

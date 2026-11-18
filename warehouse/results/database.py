@@ -45,9 +45,20 @@ class Database:
         CREATE TABLE IF NOT EXISTS results(
             run_id TEXT NOT NULL REFERENCES runs(run_id), output_index INTEGER NOT NULL,
             coordinate TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(run_id,output_index));
+        CREATE TABLE IF NOT EXISTS isolated_results(
+            run_id TEXT NOT NULL REFERENCES runs(run_id), output_index INTEGER NOT NULL,
+            coordinate TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(run_id,output_index));
+        CREATE TABLE IF NOT EXISTS rejections(
+            run_id TEXT NOT NULL REFERENCES runs(run_id), rejection_index INTEGER NOT NULL,
+            owner TEXT NOT NULL, error TEXT NOT NULL, PRIMARY KEY(run_id,rejection_index));
         PRAGMA user_version = 1;
         COMMIT;
         """)
+        columns = {row['name'] for row in
+                   self.connection.execute('PRAGMA table_info(runs)')}
+        if 'mode' not in columns:
+            self.connection.execute(
+                "ALTER TABLE runs ADD COLUMN mode TEXT NOT NULL DEFAULT 'strict'")
 
     def execute(self, sql, parameters=()):
         if self.closed:

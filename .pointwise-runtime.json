@@ -5,18 +5,13 @@
   "verify": [
     "python3.11",
     "-B",
-    "-m",
-    "unittest",
-    "discover",
-    "-s",
-    "tests",
-    "-t",
-    ".",
-    "-v"
+    "isolation_examples.py",
+    "verify"
   ],
   "demo": [
     "python3.11",
     "-B",
-    "samples.py"
+    "isolation_examples.py",
+    "demo"
   ]
 }

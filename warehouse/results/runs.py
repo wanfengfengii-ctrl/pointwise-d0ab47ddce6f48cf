@@ -24,17 +24,19 @@ class RunRecord:
     state: RunState
     row_count: int | None
     error: dict | None
+    mode: str
 
 
 class RunStore:
     def __init__(self, database):
         self.db = database
 
-    def create(self, batch_id, revision):
+    def create(self, batch_id, revision, mode='strict'):
         run_id = uuid.uuid4().hex
         with self.db.transaction('run.created.before_commit'):
-            self.db.execute('INSERT INTO runs VALUES(?,?,?,?,NULL,NULL)',
-                            (run_id, batch_id, revision, RunState.CREATED.value))
+            self.db.execute('INSERT INTO runs(run_id,batch_id,plan_revision,state,'
+                            'row_count,error,mode) VALUES(?,?,?,?,NULL,NULL,?)',
+                            (run_id, batch_id, revision, RunState.CREATED.value, mode))
         return run_id
 
     def _transition(self, run_id, old, new, count=None, error=None):
@@ -64,4 +66,5 @@ class RunStore:
             raise KeyError(f'unknown run: {run_id}')
         return RunRecord(row['run_id'], row['batch_id'], row['plan_revision'],
                          RunState(row['state']), row['row_count'],
-                         json.loads(row['error']) if row['error'] else None)
+                         json.loads(row['error']) if row['error'] else None,
+                         row['mode'])

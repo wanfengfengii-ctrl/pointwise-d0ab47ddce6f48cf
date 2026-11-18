@@ -136,6 +136,8 @@ def view(result):
 
 
 def check_isolated(warehouse, batch_id, revision, example):
+    from tests.oracle import interpret_isolated
+
     context = FunctionContext()
     receipt = warehouse.run_isolated(batch_id, revision, context)
     saved = view(warehouse.read_isolated_result(receipt.run_id))
@@ -149,11 +151,17 @@ def check_isolated(warehouse, batch_id, revision, example):
     assert context.trace == expected_trace(batch_id, example.calls), context.trace
     assert warehouse.runs.get(receipt.run_id).state is RunState.SUCCEEDED
     expect_exception(ResultUnavailable, warehouse.read_result, receipt.run_id)
+    oracle = interpret_isolated(example.records, example.plan, batch_id)
+    assert oracle["error"] is None, oracle
+    assert saved["rows"] == oracle["rows"], (saved["rows"], oracle["rows"])
+    assert saved["rejections"] == oracle["rejections"], (
+        saved["rejections"], oracle["rejections"])
+    assert context.trace == oracle["trace"], (context.trace, oracle["trace"])
     return saved, context.trace
 
 
 def baseline():
-    from tests.oracle import interpret
+    from tests.oracle import interpret, interpret_isolated
 
     with Warehouse() as warehouse:
         for name, example in (("root", late_failure(True)), ("element", late_failure(False)),
@@ -165,6 +173,9 @@ def baseline():
             expected = expected_errors(batch, example.rejections)[0]["error"]
             assert error.to_data() == strict["error"] == expected, error.to_data()
             assert context.trace == strict["trace"], context.trace
+            isolated = interpret_isolated(example.records, example.plan, batch)
+            assert isolated["error"] is None, isolated
+            assert isolated["rejections"][0]["error"] == expected, isolated["rejections"]
             assert warehouse.runs.get(error.run_id).state is RunState.FAILED
             expect_exception(ResultUnavailable, warehouse.read_result, error.run_id)
             print(json.dumps({"example": name, "strict_error": error.to_data(),
